@@ -1,55 +1,48 @@
 import { ID3Writer } from "browser-id3-writer";
-import { readFileSync, writeFileSync, readdirSync, copyFileSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync } from "fs";
 import { Shazam } from "node-shazam";
 import download from "image-downloader";
-// Dossier depot des fichiers mp3
+// ------- Dossier depot des fichiers mp3
 const muzicDirectory = "./inputMuzicDir";
 
 let muzicFiles = readdirSync(muzicDirectory);
-console.log(muzicFiles);
-const shazam = new Shazam();
-const muzicPath = muzicDirectory + "/" + muzicFiles[0];
-const recognise = await shazam.recognise(muzicPath, "en-US");
-//console.log(recognise);
-console.log(
-  "track -----------------------------",
-  recognise.track.title,
-  recognise.track.subtitle,
-  recognise.track.images.coverart,
-);
+//console.log(muzicFiles);
+for (let i = 0; i < muzicFiles.length; i++) {
+  const shazam = new Shazam();
+  const muzicPath = muzicDirectory + "/" + muzicFiles[i];
+  // -------- recuperation des informations sur shazam
+  const recognise = await shazam.recognise(muzicPath, "en-US");
+  //console.log(recognise?.track);
+  const { title, subtitle: artist, images } = recognise.track;
 
-// Recuperation de l'image
-const options = {
-  url: recognise.track.images.coverart,
-  dest: "../../images/coverart.jpg",
-};
+  // -------- Recuperation de l'image via "image-downloader"
+  const options = {
+    url: images.coverart,
+    dest: "../../images/coverart.jpg",
+  };
 
-await download
-  .image(options)
-  .then(({ filename }) => {
-    console.log("Saved to", filename); // saved to /path/to/dest/image.jpg
-  })
-  .catch((err) => console.error(err));
+  await download
+    .image(options)
+    .then(({ filename }) => {
+      console.log("Saved to", filename); // saved to /path/to/dest/image.jpg
+    })
+    .catch((err) => console.error(err));
+  // creation du tag mp3
+  const coverBuffer = readFileSync("./images/coverart.jpg");
+  const songBuffer = readFileSync(muzicPath);
+  console.log("recognise.track.images.coverart", images.coverart);
 
-const coverBuffer = readFileSync("./images/coverart.jpg");
-const songBuffer = readFileSync(muzicPath);
-console.log("recognise.track.images.coverart", recognise.track.images.coverart);
-
-const writer = new ID3Writer(songBuffer);
-writer
-  .setFrame("TIT2", recognise.track.title)
-  // .setFrame("TPE1", ["Eminem", "50 Cent"])
-  .setFrame("TALB", recognise.track.subtitle)
-  // .setFrame("TYER", 2004)
-  .setFrame("APIC", {
-    type: 3,
-    data: coverBuffer,
-    description: "Super picture",
-  });
-writer.addTag();
-
-const taggedSongBuffer = Buffer.from(writer.arrayBuffer);
-writeFileSync(
-  `${recognise.track.subtitle} - ${recognise.track.title}.mp3`,
-  taggedSongBuffer,
-);
+  const writer = new ID3Writer(songBuffer);
+  writer
+    .setFrame("TIT2", title)
+    .setFrame("TALB", artist)
+    .setFrame("APIC", {
+      type: 3,
+      data: coverBuffer,
+      description: `${artist} - ${title}`,
+    });
+  writer.addTag();
+  // Ecriture du fichier dans le dossier outputMuzicDir
+  const taggedSongBuffer = Buffer.from(writer.arrayBuffer);
+  writeFileSync(`./outputMuzicDir/${artist} - ${title}.mp3`, taggedSongBuffer);
+}
