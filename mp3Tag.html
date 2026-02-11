@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mp3Tag</title>
+    <script src="https://cdn.jsdelivr.net/npm/mp3tag.js@latest/dist/mp3tag.min.js"></script>
+  </head>
+  <body>
+    <input type="file" id="input-file" accept="audio/mpeg" multiple />
+    <div id="titles">
+      <h2>Title :</h2>
+      <span id="title"></span>
+    </div>
+    <script>
+      const titleArea = document.getElementById("titles");
+      const inputFile = document.getElementById("input-file");
+      inputFile.addEventListener("change", function () {
+        [...this.files].forEach(async (file) => {
+          const buffer = await file.arrayBuffer();
+
+          // MP3Tag Usage
+          const mp3tag = new MP3Tag(buffer);
+          mp3tag.read();
+
+          // Handle error if there's any
+          if (mp3tag.error !== "") throw new Error(mp3tag.error);
+          else {
+            console.log(mp3tag.tags);
+            console.log("title : ", mp3tag.tags.v1.title);
+            const newSpan = document.createElement("p");
+            const newContent = document.createTextNode(mp3tag.tags.v1.title);
+            newSpan.appendChild(newContent);
+            titleArea.appendChild(newSpan);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

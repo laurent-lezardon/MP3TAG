@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "browser-id3-writer": "^6.3.1",
+    "fs": "^0.0.1-security",
+    "image-downloader": "^4.3.0",
+    "mp3tag.js": "^3.14.1",
+    "node-shazam": "^1.2.7"
+  },
+  "type": "module"
+}
