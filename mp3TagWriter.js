@@ -1,23 +1,30 @@
 import { ID3Writer } from "browser-id3-writer";
-import { readFileSync, writeFileSync, readdirSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { Shazam } from "node-shazam";
 import download from "image-downloader";
-// ------- Dossier depot des fichiers mp3
-const muzicDirectory = "./inputMuzicDir";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
+const directory = dirname(fileURLToPath(import.meta.url));
+const muzicDirectory = join(directory, "/inputMuzicDir");
 let muzicFiles = readdirSync(muzicDirectory);
-//console.log(muzicFiles);
+
 for (let i = 0; i < muzicFiles.length; i++) {
   if (muzicFiles[i].slice(-4) !== ".mp3") {
     console.error(`${muzicFiles[i]} is not a mp3 file`);
-    break;
+    continue;
   } else {
     const shazam = new Shazam();
-    const muzicPath = muzicDirectory + "/" + muzicFiles[i];
+
+    const muzicPath = join(muzicDirectory, muzicFiles[i]);
+
     // -------- recuperation des informations sur shazam
     const recognise = await shazam.recognise(muzicPath, "en-US");
-    //console.log(recognise?.track);
-    const { title, subtitle: artist, images } = recognise.track;
+    if (!recognise?.track) {
+      console.log(muzicFiles[i], "-->", "!!!! shazam unknow");
+      continue;
+    }
+    const { title, subtitle: artist, images } = recognise?.track;
 
     // -------- Recuperation de l'image via "image-downloader"
     const options = {
@@ -31,11 +38,10 @@ for (let i = 0; i < muzicFiles.length; i++) {
         //console.log("Saved to", filename); // saved to /path/to/dest/image.jpg
       })
       .catch((err) => console.error(err));
-    // creation du tag mp3
+
+    // ----------- creation du tag mp3
     const coverBuffer = readFileSync("./images/coverart.jpg");
     const songBuffer = readFileSync(muzicPath);
-    //console.log("recognise.track.images.coverart", images.coverart);
-
     const writer = new ID3Writer(songBuffer);
     writer
       .setFrame("TIT2", title)
@@ -46,10 +52,11 @@ for (let i = 0; i < muzicFiles.length; i++) {
         description: `${artist} - ${title}`,
       });
     writer.addTag();
-    // Ecriture du fichier dans le dossier outputMuzicDir
+
+    // ---------  Ecriture du fichier dans le dossier outputMuzicDir
     const taggedSongBuffer = Buffer.from(writer.arrayBuffer);
     writeFileSync(
-      `./outputMuzicDir/${artist} - ${title}.mp3`,
+      join(directory, "outputMuzicDir", `${artist} - ${title}.mp3`),
       taggedSongBuffer,
     );
     console.log(muzicFiles[i], "-->", artist, " - ", title, "mp3");
