@@ -5,6 +5,15 @@ import download from "image-downloader";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+const reset = "\x1b[0m";
+
+const log = {
+  green: (text) => console.log("\x1b[32m" + text + reset),
+  red: (text) => console.log("\x1b[31m" + text + reset),
+  blue: (text) => console.log("\x1b[34m" + text + reset),
+  yellow: (text) => console.log("\x1b[33m" + text + reset),
+};
+
 const directory = dirname(fileURLToPath(import.meta.url));
 const muzicDirectory = join(directory, "/inputMuzicDir");
 let muzicFiles = readdirSync(muzicDirectory);
@@ -59,6 +68,7 @@ for (let i = 0; i < muzicFiles.length; i++) {
       join(directory, "outputMuzicDir", `${artist} - ${title}.mp3`),
       taggedSongBuffer,
     );
-    console.log(muzicFiles[i], "-->", artist, " - ", title, "mp3");
+    const logText = `${muzicFiles[i]} --> ${artist} - ${title}.mp3`;
+    log.green(logText);
   }
 }
