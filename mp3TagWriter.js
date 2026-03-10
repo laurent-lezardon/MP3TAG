@@ -21,6 +21,7 @@ let muzicFiles = readdirSync(muzicDirectory);
 for (let i = 0; i < muzicFiles.length; i++) {
   if (muzicFiles[i].slice(-4) !== ".mp3") {
     console.error(`${muzicFiles[i]} is not a mp3 file`);
+
     continue;
   } else {
     const shazam = new Shazam();
@@ -28,13 +29,19 @@ for (let i = 0; i < muzicFiles.length; i++) {
     const muzicPath = join(muzicDirectory, muzicFiles[i]);
 
     // -------- recuperation des informations sur shazam
-    const recognise = await shazam.recognise(muzicPath, "en-US");
-    if (!recognise?.track) {
-      console.log(muzicFiles[i], "-->", "!!!! shazam unknow");
-      continue;
-    }
-    const { title, subtitle: artist, images } = recognise?.track;
+    try {
+      const recognise = await shazam.recognise(muzicPath, "en-US");
 
+      if (!recognise?.track) {
+        const logNotShazam = `${muzicFiles[i]} --> !!!! shazam unknow`;
+        console.warn(muzicFiles[i], "-->", "!!!! shazam unknow");
+        log.yellow(logNotShazam);
+        continue;
+      }
+      const { title, subtitle: artist, images } = recognise?.track;
+    } catch (error) {
+      console.log("shazam fail");
+    }
     // -------- Recuperation de l'image via "image-downloader"
     const options = {
       url: images.coverart,
@@ -51,10 +58,15 @@ for (let i = 0; i < muzicFiles.length; i++) {
     // ----------- creation du tag mp3
     const coverBuffer = readFileSync("./images/coverart.jpg");
     const songBuffer = readFileSync(muzicPath);
-    const writer = new ID3Writer(songBuffer);
+    const writer = new ID3Writer(
+      songBuffer.buffer.slice(
+        songBuffer.byteOffset,
+        songBuffer.byteOffset + songBuffer.byteLength,
+      ),
+    );
     writer
-      .setFrame("TIT2", title)
-      .setFrame("TALB", artist)
+      .setFrame("TPE1", [artist]) // Artiste
+      .setFrame("TIT2", title) // Titre
       .setFrame("APIC", {
         type: 3,
         data: coverBuffer,

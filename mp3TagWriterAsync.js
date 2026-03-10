@@ -16,45 +16,53 @@ const shazamFetch = async (muzicFile) => {
   const muzicPath = join(muzicDirectory, muzicFile);
 
   // -------- recuperation des informations sur shazam
-  const recognise = await shazam.recognise(muzicPath, "en-US");
-  if (!recognise?.track) {
-    logNoShazam.push(muzicFile);
-    return;
-  } else {
-    //console.log(recognise.track);
-    const { title, subtitle: artist, images } = recognise?.track;
-    const newFileBaseName = `${title} - ${artist}`;
-    //console.log({ title, artist, images });
-    // -------- Recuperation de l'image via "image-downloader"
-    const imgFileName = `${newFileBaseName}.jpg`;
-    const options = {
-      url: images.coverart,
-      dest: join("../../images", imgFileName),
-    };
+  try {
+    const recognise = await shazam.recognise(muzicPath, "en-US");
+    if (!recognise?.track) {
+      logNoShazam.push(muzicFile);
+      return;
+    } else {
+      console.log(recognise.track);
+      const { title, subtitle: artist, images, key } = recognise?.track;
+      const regex = /[^a-zA-Z0-9]/g;
+      const newFileBaseName = `${title.replace(regex, " ")} - ${artist.replace(regex, " ")}`;
+      //console.log({ title, artist, images });
+      // -------- Recuperation de l'image via "image-downloader"
+      const imgFileName = `${key}.jpg`;
+      const options = {
+        url: images.coverart,
+        dest: join("../../images", imgFileName),
+      };
 
-    await download
-      .image(options)
-      .then(({ filename }) => {
-        //console.log("Saved to", filename); // saved to /path/to/dest/image.jpg
-      })
-      .catch((err) => console.error(err));
-    // ----------- creation du tag mp3
-    const coverBuffer = readFileSync(join("./images", imgFileName));
-    const songBuffer = readFileSync(muzicPath);
-    const writer = new ID3Writer(songBuffer);
-    writer.setFrame("TIT2", title).setFrame("TALB", artist).setFrame("APIC", {
-      type: 3,
-      data: coverBuffer,
-      description: newFileBaseName,
-    });
-    writer.addTag();
-    // ---------  Ecriture du fichier dans le dossier outputMuzicDir
-    const taggedSongBuffer = Buffer.from(writer.arrayBuffer);
-    writeFileSync(
-      join(directory, "outputMuzicDir", `${newFileBaseName}.mp3`),
-      taggedSongBuffer,
-    );
-    logSuccess.push(`${newFileBaseName}.mp3`);
+      await download
+        .image(options)
+        .then(({ filename }) => {
+          //console.log("Saved to", filename); // saved to /path/to/dest/image.jpg
+        })
+        .catch((err) => console.error("fail to download ", imgFileName));
+      // ----------- creation du tag mp3
+      const coverBuffer = readFileSync(join("./images", imgFileName));
+      const songBuffer = readFileSync(muzicPath);
+      const writer = new ID3Writer(songBuffer);
+      writer
+        .setFrame("TPE1", [artist]) // Artiste
+        .setFrame("TIT2", title) // Titre
+        .setFrame("APIC", {
+          type: 3,
+          data: coverBuffer,
+          description: newFileBaseName,
+        });
+      writer.addTag();
+      // ---------  Ecriture du fichier dans le dossier outputMuzicDir
+      const taggedSongBuffer = Buffer.from(writer.arrayBuffer);
+      writeFileSync(
+        join(directory, "outputMuzicDir", `${newFileBaseName}.mp3`),
+        taggedSongBuffer,
+      );
+      logSuccess.push(`${newFileBaseName}.mp3`);
+    }
+  } catch (error) {
+    logNoShazam.push(muzicFile);
   }
 };
 
